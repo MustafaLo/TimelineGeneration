@@ -1,0 +1,174 @@
+@import "tailwindcss";
+
+/* ─── Design Tokens ────────────────────────────────────────── */
+:root {
+  /* Light mode (default) */
+  --bg:          #f0ead6;
+  --bg-subtle:   #e8e0c8;
+  --fg:          #1c1a17;
+  --fg-muted:    #6b6353;
+  --accent:      #9b5e2a;
+  --accent-muted:#c4905a;
+  --border:      rgba(28, 26, 23, 0.15);
+
+  /* Typography */
+  --font-display: var(--font-cormorant), Georgia, serif;
+  --font-mono:    var(--font-dm-mono), "Courier New", monospace;
+
+  /* Easing */
+  --ease-physical: cubic-bezier(0.7, 0, 0.3, 1);
+}
+
+.dark {
+  --bg:          #1c1a17;
+  --bg-subtle:   #252219;
+  --fg:          #f0ead6;
+  --fg-muted:    #9b9178;
+  --accent:      #c4905a;
+  --accent-muted:#9b6a3a;
+  --border:      rgba(240, 234, 214, 0.12);
+}
+
+/* ─── Base Reset ────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  height: 100%;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  height: 100%;
+  background-color: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-mono);
+  transition: background-color 0.3s var(--ease-physical),
+              color 0.3s var(--ease-physical);
+  overflow: hidden;
+}
+
+/* ─── Typography Scale ──────────────────────────────────────── */
+h1, h2, h3 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+
+/* ─── Selection ─────────────────────────────────────────────── */
+::selection {
+  background: var(--accent-muted);
+  color: var(--bg);
+}
+
+/* ─── Category Bar Colors (desaturated ink tones) ───────────── */
+:root {
+  --cat-0: #7a6e5f;
+  --cat-1: #5f6e6a;
+  --cat-2: #6e5f7a;
+  --cat-3: #7a6a5f;
+  --cat-4: #5f7a6e;
+  --cat-5: #6a6e5f;
+  --cat-6: #7a5f6a;
+  --cat-7: #5f6a7a;
+}
+
+/* ─── Animation Keyframes ───────────────────────────────────── */
+@keyframes blink-cursor {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes name-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Bar draw-on: clip-path reveals left → right like ink pulled across the page */
+@keyframes bar-draw {
+  from { clip-path: inset(0 100% 0 0); }
+  to   { clip-path: inset(0 0% 0 0); }
+}
+
+/* Column draw-on: clip-path reveals top → bottom for vertical grid lines */
+@keyframes col-draw {
+  from { clip-path: inset(0 0 100% 0); }
+  to   { clip-path: inset(0 0 0% 0); }
+}
+
+/* Generic fade to a target opacity set via --final-opacity custom property */
+@keyframes timeline-fade {
+  from { opacity: 0; }
+  to   { opacity: var(--final-opacity, 1); }
+}
+
+/* ─── Bar hover: dim others, lift hovered ───────────────────────── */
+@media (hover: hover) and (pointer: fine) {
+  .bar-group {
+    transition: opacity 200ms ease;
+  }
+  svg:has(.bar-group:hover) .bar-group {
+    opacity: 0.4;
+  }
+  .bar-group:hover {
+    opacity: 1 !important;
+  }
+}
+
+/* Loading animation — waves */
+@keyframes wv-slow {
+  from { transform: translateX(0);      }
+  to   { transform: translateX(-160px); }
+}
+@keyframes wv-mid {
+  from { transform: translateX(-56px);  }
+  to   { transform: translateX(-216px); }
+}
+@keyframes wv-fast {
+  from { transform: translateX(-104px); }
+  to   { transform: translateX(-264px); }
+}
+
+/* Loading animation — ship bob + rock */
+@keyframes ship-bob {
+  0%,100% { transform: translateY(0px)   rotate(0deg);    }
+  28%     { transform: translateY(-9px)  rotate(-3.5deg); }
+  72%     { transform: translateY(6px)   rotate(2.5deg);  }
+}
+
+/* ─── Modal animations ──────────────────────────────────────── */
+@keyframes modal-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes modal-fade-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+@keyframes modal-card-in {
+  from { opacity: 0; transform: scale(0.97) translateY(8px); }
+  to   { opacity: 1; transform: scale(1)    translateY(0);   }
+}
+@keyframes modal-card-out {
+  from { opacity: 1; transform: scale(1)    translateY(0);   }
+  to   { opacity: 0; transform: scale(0.97) translateY(8px); }
+}
+
+/* ─── Reduced Motion ────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
