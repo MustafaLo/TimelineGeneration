@@ -86,7 +86,7 @@ export default function NameList({
     <div
       style={{
         position: "fixed",
-        top: "calc(48px + 80px)",
+        top: "calc(48px + 56px)",
         left: "50%",
         transform: "translateX(-50%)",
         zIndex: 40,

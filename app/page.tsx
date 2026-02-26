@@ -209,7 +209,7 @@ export default function Home() {
               userSelect: "none",
             }}
           >
-            Timeline<br />Generator
+            Timelines
           </h1>
 
           <div

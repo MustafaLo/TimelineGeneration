@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextRequest, NextResponse } from "next/server";
 import { NotableEvent } from "@/lib/eventCache";
 
@@ -48,6 +49,16 @@ async function callOpenRouter(apiKey: string, msg: string): Promise<string> {
   return json.choices[0].message.content as string;
 }
 
+async function callGemini(apiKey: string, msg: string): Promise<string> {
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const model = genAI.getGenerativeModel({
+    model: "gemini-2.0-flash",
+    systemInstruction: SYSTEM_PROMPT,
+  });
+  const result = await model.generateContent(msg);
+  return result.response.text();
+}
+
 async function callAnthropic(apiKey: string, msg: string): Promise<string> {
   const client = new Anthropic({ apiKey });
   const message = await client.messages.create({
@@ -64,9 +75,10 @@ async function callAnthropic(apiKey: string, msg: string): Promise<string> {
 
 export async function POST(request: NextRequest) {
   const openRouterKey = process.env.OPENROUTER_API_KEY;
+  const geminiKey     = process.env.GEMINI_API_KEY;
   const anthropicKey  = process.env.ANTHROPIC_API_KEY;
 
-  if (!openRouterKey && !anthropicKey) {
+  if (!openRouterKey && !geminiKey && !anthropicKey) {
     return NextResponse.json(
       { error: "No API key configured." },
       { status: 500 }
@@ -101,8 +113,11 @@ export async function POST(request: NextRequest) {
     `Return 10-12 notable events from ${birth_year} to ${gridEnd}.`;
 
   try {
+    // Priority: OpenRouter → Gemini → Anthropic
     const rawText = openRouterKey
       ? await callOpenRouter(openRouterKey, userMessage)
+      : geminiKey
+      ? await callGemini(geminiKey, userMessage)
       : await callAnthropic(anthropicKey!, userMessage);
 
     let events: NotableEvent[];

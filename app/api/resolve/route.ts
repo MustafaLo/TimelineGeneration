@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextRequest, NextResponse } from "next/server";
 import { PersonData } from "@/types/timeline";
 
@@ -23,6 +24,12 @@ Example output:
 ]`;
 
 // ── Provider calls ────────────────────────────────────────────────────────────
+
+// To switch providers, set the matching key in .env.local and restart the server:
+//   OPENROUTER_API_KEY  → uses openrouter/free (any available free model)
+//   GEMINI_API_KEY      → uses gemini-2.0-flash (free tier, 1500 req/day when available)
+//   ANTHROPIC_API_KEY   → uses claude-sonnet-4-6 (paid)
+// Priority order: OpenRouter → Gemini → Anthropic
 
 async function callOpenRouter(apiKey: string, userMessage: string): Promise<string> {
   const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -52,6 +59,16 @@ async function callOpenRouter(apiKey: string, userMessage: string): Promise<stri
   return json.choices[0].message.content as string;
 }
 
+async function callGemini(apiKey: string, userMessage: string): Promise<string> {
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const model = genAI.getGenerativeModel({
+    model: "gemini-2.0-flash",
+    systemInstruction: SYSTEM_PROMPT,
+  });
+  const result = await model.generateContent(userMessage);
+  return result.response.text();
+}
+
 async function callAnthropic(apiKey: string, userMessage: string): Promise<string> {
   const client = new Anthropic({ apiKey });
   const message = await client.messages.create({
@@ -70,11 +87,12 @@ async function callAnthropic(apiKey: string, userMessage: string): Promise<strin
 
 export async function POST(request: NextRequest) {
   const openRouterKey = process.env.OPENROUTER_API_KEY;
+  const geminiKey     = process.env.GEMINI_API_KEY;
   const anthropicKey  = process.env.ANTHROPIC_API_KEY;
 
-  if (!openRouterKey && !anthropicKey) {
+  if (!openRouterKey && !geminiKey && !anthropicKey) {
     return NextResponse.json(
-      { error: "No API key configured. Add OPENROUTER_API_KEY or ANTHROPIC_API_KEY to .env.local." },
+      { error: "No API key configured. Add OPENROUTER_API_KEY, GEMINI_API_KEY, or ANTHROPIC_API_KEY to .env.local." },
       { status: 500 }
     );
   }
@@ -93,9 +111,11 @@ export async function POST(request: NextRequest) {
   const userMessage = `Find biographical data for these people:\n${names.map((n, i) => `${i + 1}. ${n}`).join("\n")}`;
 
   try {
-    // Prefer OpenRouter when available; fall back to Anthropic
+    // Priority: OpenRouter → Gemini → Anthropic
     const rawText = openRouterKey
       ? await callOpenRouter(openRouterKey, userMessage)
+      : geminiKey
+      ? await callGemini(geminiKey, userMessage)
       : await callAnthropic(anthropicKey!, userMessage);
 
     let data: PersonData[];
@@ -136,7 +156,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ data });
   } catch (err) {
     const error = err as Error & { status?: number };
-    const provider = openRouterKey ? "OpenRouter" : "Anthropic";
+    const provider = openRouterKey ? "OpenRouter" : geminiKey ? "Gemini" : "Anthropic";
     console.error(`${provider} API error:`, error);
 
     if (error.status === 401) {
