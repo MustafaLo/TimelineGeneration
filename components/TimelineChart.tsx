@@ -254,10 +254,13 @@ export default function TimelineChart({
                 style={{
                   pointerEvents: isExiting ? "none" : "auto",
                   cursor: onPersonClick ? "pointer" : "default",
-                  opacity: isExiting ? 0 : 1,
-                  transition: isExiting
-                    ? `opacity ${BAR_EXIT_DURATION}ms cubic-bezier(0.7,0,0.3,1)`
-                    : "opacity 0.15s ease",
+                  // Only set opacity/transition via inline style when exiting.
+                  // When idle, let globals.css `.bar-group:hover` rules control opacity
+                  // (inline styles would override those CSS rules if always present).
+                  ...(isExiting ? {
+                    opacity: 0,
+                    transition: `opacity ${BAR_EXIT_DURATION}ms cubic-bezier(0.7,0,0.3,1)`,
+                  } : {}),
                 }}
                 onMouseEnter={() => !isExiting && setHoveredBar(person.name)}
                 onMouseLeave={() => { setHoveredBar(null); setHoveredX(null); }}

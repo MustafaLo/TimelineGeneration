@@ -15,7 +15,8 @@
       "Bash(grep:*)",
       "WebFetch(domain:codepen.io)",
       "Bash(python3 -c \" import sys, json, re for line in sys.stdin: # Each line is: filename.jsonl:json_content colon_idx = line.index\\(''.jsonl:''\\) json_str = line[colon_idx + 7:] try: obj = json.loads\\(json_str\\) msg = obj.get\\(''message'', {}\\) content = msg.get\\(''content'', ''''\\) if isinstance\\(content, list\\): for block in content: if isinstance\\(block, dict\\) and block.get\\(''type''\\) == ''text'': text = block.get\\(''text'', ''''\\) if re.search\\(r''modal|gsap'', text, re.IGNORECASE\\): print\\(''=== ROLE:'', msg.get\\(''role''\\), ''===''\\) print\\(text[:1000]\\) print\\(\\) elif isinstance\\(content, str\\): if re.search\\(r''modal|gsap'', content, re.IGNORECASE\\): print\\(''=== ROLE:'', msg.get\\(''role''\\), ''===''\\) print\\(content[:1000]\\) print\\(\\) except Exception: pass \")",
-      "WebFetch(domain:demos.gsap.com)"
+      "WebFetch(domain:demos.gsap.com)",
+      "WebFetch(domain:openrouter.ai)"
     ]
   }
 }

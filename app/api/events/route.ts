@@ -1,5 +1,4 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextRequest, NextResponse } from "next/server";
 import { NotableEvent } from "@/lib/eventCache";
 
@@ -21,14 +20,32 @@ Rules:
 Example output:
 [{"year":1789,"label":"French Revolution begins"},{"year":1804,"label":"Steam locomotive built"},{"year":1879,"label":"Edison patents lightbulb"}]`;
 
-async function callGemini(apiKey: string, msg: string): Promise<string> {
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({
-    model: "gemini-2.5-flash",
-    systemInstruction: SYSTEM_PROMPT,
+async function callOpenRouter(apiKey: string, msg: string): Promise<string> {
+  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+      "HTTP-Referer": "https://timeline-generator.app",
+      "X-Title": "Timeline Generator",
+    },
+    body: JSON.stringify({
+      model: "openrouter/free",
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user",   content: msg },
+      ],
+    }),
   });
-  const result = await model.generateContent(msg);
-  return result.response.text();
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    const msg2 = err?.error?.message ?? `OpenRouter error ${res.status}`;
+    throw Object.assign(new Error(msg2), { status: res.status });
+  }
+
+  const json = await res.json();
+  return json.choices[0].message.content as string;
 }
 
 async function callAnthropic(apiKey: string, msg: string): Promise<string> {
@@ -46,10 +63,10 @@ async function callAnthropic(apiKey: string, msg: string): Promise<string> {
 }
 
 export async function POST(request: NextRequest) {
-  const geminiKey    = process.env.GEMINI_API_KEY;
-  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  const openRouterKey = process.env.OPENROUTER_API_KEY;
+  const anthropicKey  = process.env.ANTHROPIC_API_KEY;
 
-  if (!geminiKey && !anthropicKey) {
+  if (!openRouterKey && !anthropicKey) {
     return NextResponse.json(
       { error: "No API key configured." },
       { status: 500 }
@@ -84,8 +101,8 @@ export async function POST(request: NextRequest) {
     `Return 10-12 notable events from ${birth_year} to ${gridEnd}.`;
 
   try {
-    const rawText = geminiKey
-      ? await callGemini(geminiKey, userMessage)
+    const rawText = openRouterKey
+      ? await callOpenRouter(openRouterKey, userMessage)
       : await callAnthropic(anthropicKey!, userMessage);
 
     let events: NotableEvent[];
