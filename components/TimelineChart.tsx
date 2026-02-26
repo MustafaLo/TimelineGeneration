@@ -23,6 +23,7 @@ const BAR_DRAW_DURATION  = 700;  // ms — time for a single bar to draw in
 const BAR_STAGGER        = 70;   // ms — offset between consecutive bars
 const LABEL_FADE_DURATION = 200; // ms — label fade after bar finishes
 const TICK_STAGGER       = 50;   // ms — offset between tick labels
+const BAR_EXIT_DURATION  = 320;  // ms — bar fade-out on removal
 
 // Desaturated ink tones — mirrors --cat-0..7 in globals.css
 const CAT_COLORS = [
@@ -74,12 +75,17 @@ function buildFlatLayout(
 export default function TimelineChart({
   data,
   onPersonClick,
+  onRemovePerson,
 }: {
   data: TimelineData;
   onPersonClick?: (person: PersonData, color: string) => void;
+  onRemovePerson?: (name: string) => void;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [dims, setDims] = useState({ w: 0, h: 0 });
+  const [hoveredBar, setHoveredBar] = useState<string | null>(null);
+  const [hoveredX, setHoveredX] = useState<string | null>(null);
+  const [exitingNames, setExitingNames] = useState<Set<string>>(new Set());
 
   // Per-person animation delay, computed once per name and cached in a ref.
   // Map is idempotent: existing names keep their delay, new names get
@@ -197,7 +203,8 @@ export default function TimelineChart({
           const bx = xs(person.birth_year);
           const solidEndX = xs(person.death_year ?? CURRENT_YEAR);
           const barW = Math.max(2, solidEndX - bx);
-          const midBarY = barY + BAR_H / 2;
+          // All y-coords are relative to the group's translateY — so midBarY is just BAR_H/2
+          const midY = BAR_H / 2;
           const isAlive = person.death_year === null;
 
           const arrowEndX = isAlive
@@ -214,87 +221,155 @@ export default function TimelineChart({
           const barDelay = animDelayMapRef.current.get(person.name) ?? 0;
           const labelDelay = barDelay + BAR_DRAW_DURATION;
 
+          const isBarHovered = hoveredBar === person.name;
+          const isXHovered = hoveredX === person.name;
+          const isExiting = exitingNames.has(person.name);
+
+          // × position: after name label when on right, or after bar end when name is on left
+          const xBtnX = nameOnLeft
+            ? rightOfBar + 10
+            : nameRightX + nameW + 6;
+
           return (
-            // Outer <g>: hover target with pointer-events enabled
+            /*
+              Outer <g>: positions the bar via CSS transform (not SVG y-attr).
+              Using transform lets CSS transition the position when bars shift
+              after a removal — all remaining bars slide smoothly to their new slots.
+            */
             <g
               key={person.name}
-              className="bar-group"
               style={{
-                pointerEvents: "auto",
-                cursor: onPersonClick ? "pointer" : "default",
+                transform: `translateY(${barY}px)`,
+                // Position shift: only when NOT part of the entrance animation
+                transition: `transform 380ms cubic-bezier(0.7,0,0.3,1)`,
               }}
-              onClick={() => onPersonClick?.(person, color)}
             >
               {/*
-                Inner <g>: receives the clip-path draw-on animation.
-                clip-path inset(0 100%→0% 0 0) reveals the group left→right.
-                Contains bar, optional notch, and optional alive indicator —
-                all drawn in unison as a single ink stroke.
+                Inner <g>: handles hover interactions + exit fade.
+                Kept separate from the transform layer so opacity and
+                position transitions don't fight each other.
               */}
               <g
+                className="bar-group"
                 style={{
-                  animation: `bar-draw ${BAR_DRAW_DURATION}ms cubic-bezier(0.7,0,0.3,1) ${barDelay}ms both`,
+                  pointerEvents: isExiting ? "none" : "auto",
+                  cursor: onPersonClick ? "pointer" : "default",
+                  opacity: isExiting ? 0 : 1,
+                  transition: isExiting
+                    ? `opacity ${BAR_EXIT_DURATION}ms cubic-bezier(0.7,0,0.3,1)`
+                    : "opacity 0.15s ease",
                 }}
+                onMouseEnter={() => !isExiting && setHoveredBar(person.name)}
+                onMouseLeave={() => { setHoveredBar(null); setHoveredX(null); }}
+                onClick={() => !isExiting && onPersonClick?.(person, color)}
               >
-                {/* Solid bar */}
-                <rect
-                  x={bx}
-                  y={barY}
-                  width={barW}
-                  height={BAR_H}
-                  fill={color}
-                  opacity={person.approximate ? 0.52 : 0.82}
-                  rx={1.5}
-                  ry={1.5}
-                />
-
-                {/* Approximate: open left-edge notch */}
-                {person.approximate && (
+                {/*
+                  Draw animation <g>: clip-path bar-draw animation.
+                  All rects/lines use y=0 / midY (relative to outer translateY).
+                */}
+                <g
+                  style={{
+                    animation: `bar-draw ${BAR_DRAW_DURATION}ms cubic-bezier(0.7,0,0.3,1) ${barDelay}ms both`,
+                  }}
+                >
+                  {/* Solid bar */}
                   <rect
                     x={bx}
-                    y={barY}
-                    width={4}
+                    y={0}
+                    width={barW}
                     height={BAR_H}
-                    fill="var(--bg)"
-                    opacity={0.65}
+                    fill={color}
+                    opacity={person.approximate ? 0.52 : 0.82}
                     rx={1.5}
+                    ry={1.5}
                   />
-                )}
 
-                {/* Living person: dashed extension + arrow */}
-                {isAlive && (
-                  <line
-                    x1={solidEndX}
-                    y1={midBarY}
-                    x2={arrowEndX}
-                    y2={midBarY}
-                    stroke={color}
-                    strokeWidth={1.5}
-                    strokeDasharray="3,4"
-                    opacity={0.55}
-                    markerEnd="url(#alive-arrow)"
-                  />
+                  {/* Approximate: open left-edge notch */}
+                  {person.approximate && (
+                    <rect
+                      x={bx}
+                      y={0}
+                      width={4}
+                      height={BAR_H}
+                      fill="var(--bg)"
+                      opacity={0.65}
+                      rx={1.5}
+                    />
+                  )}
+
+                  {/* Living person: dashed extension + arrow */}
+                  {isAlive && (
+                    <line
+                      x1={solidEndX}
+                      y1={midY}
+                      x2={arrowEndX}
+                      y2={midY}
+                      stroke={color}
+                      strokeWidth={1.5}
+                      strokeDasharray="3,4"
+                      opacity={0.55}
+                      markerEnd="url(#alive-arrow)"
+                    />
+                  )}
+                </g>
+
+                {/* Name label — fades in only after its bar finishes drawing */}
+                <text
+                  x={nameX}
+                  y={midY}
+                  textAnchor={nameAnchor}
+                  dominantBaseline="middle"
+                  style={{
+                    fontFamily: "var(--font-mono)",
+                    fontSize: "10px",
+                    fill: "var(--fg)",
+                    userSelect: "none",
+                    pointerEvents: "none",
+                    ["--final-opacity" as string]: "0.8",
+                    animation: `timeline-fade ${LABEL_FADE_DURATION}ms ease ${labelDelay}ms both`,
+                  } as React.CSSProperties}
+                >
+                  {person.name}
+                </text>
+
+                {/* × remove button — appears only on bar hover */}
+                {onRemovePerson && (
+                  <text
+                    x={xBtnX}
+                    y={midY}
+                    textAnchor="start"
+                    dominantBaseline="middle"
+                    style={{
+                      fontFamily: "var(--font-mono)",
+                      fontSize: "11px",
+                      fill: "var(--fg)",
+                      userSelect: "none",
+                      cursor: "pointer",
+                      opacity: isBarHovered ? (isXHovered ? 0.75 : 0.35) : 0,
+                      transition: "opacity 0.15s ease",
+                    }}
+                    onMouseEnter={(e) => { e.stopPropagation(); setHoveredX(person.name); }}
+                    onMouseLeave={(e) => { e.stopPropagation(); setHoveredX(null); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      // Start exit animation, then notify parent after it completes
+                      setExitingNames(prev => new Set(prev).add(person.name));
+                      setHoveredBar(null);
+                      setHoveredX(null);
+                      setTimeout(() => {
+                        onRemovePerson(person.name);
+                        setExitingNames(prev => {
+                          const next = new Set(prev);
+                          next.delete(person.name);
+                          return next;
+                        });
+                      }, BAR_EXIT_DURATION + 40);
+                    }}
+                  >
+                    ×
+                  </text>
                 )}
               </g>
-
-              {/* Name label — fades in only after its bar finishes drawing */}
-              <text
-                x={nameX}
-                y={midBarY}
-                textAnchor={nameAnchor}
-                dominantBaseline="middle"
-                style={{
-                  fontFamily: "var(--font-mono)",
-                  fontSize: "10px",
-                  fill: "var(--fg)",
-                  userSelect: "none",
-                  pointerEvents: "none",
-                  ["--final-opacity" as string]: "0.8",
-                  animation: `timeline-fade ${LABEL_FADE_DURATION}ms ease ${labelDelay}ms both`,
-                } as React.CSSProperties}
-              >
-                {person.name}
-              </text>
             </g>
           );
         })}

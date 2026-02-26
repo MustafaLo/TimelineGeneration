@@ -9,11 +9,6 @@ interface InputBarProps {
   disabled: boolean;
 }
 
-interface Position {
-  x: number;
-  y: number;
-}
-
 export default function InputBar({
   onSubmitName,
   onGenerate,
@@ -21,9 +16,6 @@ export default function InputBar({
   disabled,
 }: InputBarProps) {
   const [value, setValue] = useState("");
-  const [position, setPosition] = useState<Position>({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-  const dragStartRef = useRef<{ mouseX: number; mouseY: number; posX: number; posY: number } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleKeyDown = useCallback(
@@ -36,46 +28,6 @@ export default function InputBar({
     [value, onSubmitName]
   );
 
-  const handleMouseDownDrag = useCallback(
-    (e: React.MouseEvent) => {
-      e.preventDefault();
-      setIsDragging(true);
-      dragStartRef.current = {
-        mouseX: e.clientX,
-        mouseY: e.clientY,
-        posX: position.x,
-        posY: position.y,
-      };
-    },
-    [position]
-  );
-
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isDragging || !dragStartRef.current) return;
-      const dx = e.clientX - dragStartRef.current.mouseX;
-      const dy = e.clientY - dragStartRef.current.mouseY;
-      setPosition({
-        x: dragStartRef.current.posX + dx,
-        y: dragStartRef.current.posY + dy,
-      });
-    };
-
-    const handleMouseUp = () => {
-      setIsDragging(false);
-      dragStartRef.current = null;
-    };
-
-    if (isDragging) {
-      window.addEventListener("mousemove", handleMouseMove);
-      window.addEventListener("mouseup", handleMouseUp);
-    }
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
-    };
-  }, [isDragging]);
-
   // Focus input on mount
   useEffect(() => {
     inputRef.current?.focus();
@@ -85,46 +37,15 @@ export default function InputBar({
     <div
       style={{
         position: "fixed",
-        top: `calc(48px + ${position.y}px)`,
-        left: `calc(50% + ${position.x}px)`,
+        top: "48px",
+        left: "50%",
         transform: "translateX(-50%)",
         zIndex: 50,
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        gap: "1.5rem",
-        userSelect: isDragging ? "none" : undefined,
       }}
     >
-      {/* Drag handle */}
-      <div
-        onMouseDown={handleMouseDownDrag}
-        title="Drag to reposition"
-        style={{
-          cursor: isDragging ? "grabbing" : "grab",
-          display: "grid",
-          gridTemplateColumns: "repeat(3, 3px)",
-          gap: "2.5px",
-          padding: "4px",
-          opacity: 0.3,
-          transition: "opacity 0.2s",
-        }}
-        onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.opacity = "0.7")}
-        onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.opacity = "0.3")}
-      >
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div
-            key={i}
-            style={{
-              width: 3,
-              height: 3,
-              borderRadius: "50%",
-              backgroundColor: "var(--fg-muted)",
-            }}
-          />
-        ))}
-      </div>
-
       {/* Input field */}
       <div
         style={{

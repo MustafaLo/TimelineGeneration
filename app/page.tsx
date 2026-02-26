@@ -8,12 +8,16 @@ import TimelineChart from "@/components/TimelineChart";
 import ChartSkeleton from "@/components/ChartSkeleton";
 import LoadingAnimation from "@/components/LoadingAnimation";
 import PersonModal from "@/components/PersonModal";
+import { useLocalStorage } from "@/lib/useLocalStorage";
 import { TimelineData, AppState, PersonData } from "@/types/timeline";
 
 export default function Home() {
-  const [names, setNames] = useState<string[]>([]);
+  const [names, setNames] = useLocalStorage<string[]>("tg_pending_names", []);
   const [appState, setAppState] = useState<AppState>("landing");
-  const [timelineData, setTimelineData] = useState<TimelineData | null>(null);
+  const [timelineData, setTimelineData, isHydrated] = useLocalStorage<TimelineData | null>(
+    "tg_timeline_data",
+    null
+  );
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [namesHidden, setNamesHidden] = useState(false);
   const [selectedPerson, setSelectedPerson] = useState<PersonData | null>(null);
@@ -32,6 +36,17 @@ export default function Home() {
     requestAnimationFrame(() => setLandingVisible(true));
   }, []);
 
+  // On hydration: if stored chart data exists, bypass landing and go straight to chart
+  useEffect(() => {
+    if (isHydrated && timelineData && timelineData.length > 0 && appState === "landing") {
+      hasReceivedDataRef.current = true;
+      setAppState("input");
+      setLandingVisible(false);
+      setAppVisible(true);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isHydrated]);
+
   function handleBegin() {
     setLandingVisible(false);
     setTimeout(() => {
@@ -47,6 +62,21 @@ export default function Home() {
 
   function handleRemoveName(name: string) {
     setNames((prev) => prev.filter((n) => n !== name));
+  }
+
+  function handleRemovePersonFromChart(name: string) {
+    setTimelineData((prev) => {
+      if (!prev) return null;
+      const next = prev.filter((p) => p.name !== name);
+      return next.length === 0 ? null : next;
+    });
+    if (selectedPerson?.name === name) setSelectedPerson(null);
+  }
+
+  function handleClearChart() {
+    setTimelineData(null);
+    setSelectedPerson(null);
+    setNames([]);
   }
 
   function dismissSkeleton() {
@@ -117,6 +147,39 @@ export default function Home() {
       }}
     >
       <ThemeToggle />
+
+      {/* ── Clear chart button (top-left, mirrors ThemeToggle) ───────────────── */}
+      <button
+        onClick={handleClearChart}
+        title="Clear chart"
+        aria-label="Clear chart"
+        style={{
+          position: "fixed",
+          top: "1.25rem",
+          left: "1.25rem",
+          zIndex: 100,
+          background: "none",
+          border: "none",
+          cursor: "pointer",
+          color: "var(--fg-muted)",
+          padding: "4px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          opacity: timelineData ? 0.5 : 0,
+          pointerEvents: timelineData ? "auto" : "none",
+          transition: "opacity 0.3s ease",
+        }}
+        onMouseEnter={(e) => { if (timelineData) e.currentTarget.style.opacity = "1"; }}
+        onMouseLeave={(e) => { e.currentTarget.style.opacity = timelineData ? "0.5" : "0"; }}
+      >
+        {/* Eraser icon — fits the ink-on-paper metaphor */}
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21" />
+          <path d="M22 21H7" />
+          <path d="m5 11 9 9" />
+        </svg>
+      </button>
 
       {/* ── Landing screen ───────────────────────────────────────────────── */}
       {appState === "landing" && (
@@ -222,6 +285,7 @@ export default function Home() {
                 setSelectedPerson(person);
                 setSelectedColor(color);
               }}
+              onRemovePerson={handleRemovePersonFromChart}
             />
           )}
 
