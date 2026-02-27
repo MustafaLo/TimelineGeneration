@@ -19,7 +19,7 @@ const dmMono = DM_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Timeline Generator",
+  title: "Lifelines",
   description: "Biographical timeline charts in the style of Priestley's 1765 Chart of Biography",
 };
 

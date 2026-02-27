@@ -28,7 +28,7 @@ async function callOpenRouter(apiKey: string, msg: string): Promise<string> {
       "Authorization": `Bearer ${apiKey}`,
       "Content-Type": "application/json",
       "HTTP-Referer": "https://timeline-generator.app",
-      "X-Title": "Timeline Generator",
+      "X-Title": "Lifelines",
     },
     body: JSON.stringify({
       model: "openrouter/free",
