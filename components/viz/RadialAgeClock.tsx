@@ -104,8 +104,17 @@ export default function RadialAgeClock({ person, barColor, allData }: Props) {
       const otherEnd = p.death_year ?? CURRENT_YEAR;
       return Math.min(otherEnd, personEnd) > Math.max(p.birth_year, person.birth_year);
     })
+    // Pick the 10 closest contemporaries by shared years — most overlap first
     .sort((a, b) => {
-      // ascending ageGap = youngest (inner) first, oldest (outer) last
+      const endA    = a.death_year ?? CURRENT_YEAR;
+      const endB    = b.death_year ?? CURRENT_YEAR;
+      const shareA  = Math.min(endA, personEnd) - Math.max(a.birth_year, person.birth_year);
+      const shareB  = Math.min(endB, personEnd) - Math.max(b.birth_year, person.birth_year);
+      return shareB - shareA;
+    })
+    .slice(0, 10)
+    // Re-sort by age gap for radial positioning: youngest (inner) → oldest (outer)
+    .sort((a, b) => {
       const gapA = person.birth_year - a.birth_year;
       const gapB = person.birth_year - b.birth_year;
       return gapA - gapB;
@@ -394,7 +403,7 @@ export default function RadialAgeClock({ person, barColor, allData }: Props) {
                   userSelect: "none",
                 }}
               >
-                born
+                born / death
               </text>
             </g>
           );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { gsap } from "gsap";
 import { PersonData } from "@/types/timeline";
 import { NotableEvent } from "@/lib/eventCache";
@@ -39,6 +39,7 @@ export default function YearGrid({ person, barColor, events, loading }: Props) {
 
   const [squareSize, setSquareSize] = useState(16); // will be overridden
   const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
+  const [dividerVisible, setDividerVisible] = useState(false);
 
   // ── Grid geometry ──────────────────────────────────────────────────────────
   const isAlive   = person.death_year === null;
@@ -113,6 +114,7 @@ export default function YearGrid({ person, barColor, events, loading }: Props) {
   useEffect(() => {
     hasEnteredRef.current = false;
     quickTosRef.current   = [];
+    setDividerVisible(false);
 
     const els = squareRefs.current.filter(Boolean) as HTMLDivElement[];
     if (els.length === 0) return;
@@ -131,6 +133,7 @@ export default function YearGrid({ person, barColor, events, loading }: Props) {
       gsap.set(els, { opacity: (i: number) => finalOp(i), scale: 1, x: 0, y: 0 });
       hasEnteredRef.current = true;
       quickTosRef.current   = els.map(makeQts);
+      setDividerVisible(true);
     } else {
       gsap.set(els, { opacity: 0, scale: 0.35, x: 0, y: 0 });
       entranceRef.current = gsap.to(els, {
@@ -144,6 +147,7 @@ export default function YearGrid({ person, barColor, events, loading }: Props) {
           quickTosRef.current   = (
             squareRefs.current.filter(Boolean) as HTMLDivElement[]
           ).map(makeQts);
+          setDividerVisible(true);
         },
       });
     }
@@ -332,25 +336,40 @@ export default function YearGrid({ person, barColor, events, loading }: Props) {
         }}
       >
         {years.map((year, i) => {
-          const inLife = year <= deathYear;
-          const hasEvt = eventMap.has(year);
+          const inLife      = year <= deathYear;
+          const hasEvt      = eventMap.has(year);
+          const isLastAlive = !isAlive && inLife &&
+            (i + 1 >= years.length || years[i + 1] > deathYear);
 
           return (
-            <div
-              key={year}
-              ref={(el) => { squareRefs.current[i] = el; }}
-              style={{
-                width          : `${squareSize}px`,
-                height         : `${squareSize}px`,
-                flexShrink     : 0,
-                backgroundColor: hasEvt
-                  ? (inLife ? barColor : "var(--fg-muted)")
-                  : (inLife ? "var(--fg)" : "var(--fg-muted)"),
-                borderRadius   : `${Math.max(1.5, squareSize * 0.08)}px`,
-                transformOrigin: "center",
-                willChange     : "transform",
-              }}
-            />
+            <React.Fragment key={year}>
+              <div
+                ref={(el) => { squareRefs.current[i] = el; }}
+                style={{
+                  width          : `${squareSize}px`,
+                  height         : `${squareSize}px`,
+                  flexShrink     : 0,
+                  backgroundColor: hasEvt
+                    ? (inLife ? barColor : "var(--fg-muted)")
+                    : (inLife ? "var(--fg)" : "var(--fg-muted)"),
+                  borderRadius   : `${Math.max(1.5, squareSize * 0.08)}px`,
+                  transformOrigin: "center",
+                  willChange     : "transform",
+                }}
+              />
+              {isLastAlive && (
+                <div style={{
+                  width          : "1px",
+                  height         : `${Math.round(squareSize * 0.6)}px`,
+                  flexShrink     : 0,
+                  backgroundColor: "var(--fg)",
+                  opacity        : dividerVisible ? 0.3 : 0,
+                  transition     : "opacity 0.4s ease",
+                  alignSelf      : "center",
+                  margin         : "0 5px",
+                }} />
+              )}
+            </React.Fragment>
           );
         })}
       </div>
