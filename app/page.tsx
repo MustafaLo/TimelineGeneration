@@ -209,7 +209,7 @@ export default function Home() {
               userSelect: "none",
             }}
           >
-            Timelines
+            Lifelines
           </h1>
 
           <div
