@@ -232,7 +232,7 @@ export default function Home() {
               userSelect: "none",
             }}
           >
-            a chart of biography based on Priestley&apos;s 1815 charts
+            a chart of biography based on Priestley&apos;s charts
           </p>
 
           <button
