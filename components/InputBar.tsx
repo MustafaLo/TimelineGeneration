@@ -17,6 +17,15 @@ export default function InputBar({
 }: InputBarProps) {
   const [value, setValue] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 768px)");
+    setIsMobile(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -37,7 +46,7 @@ export default function InputBar({
     <div
       style={{
         position: "fixed",
-        top: "48px",
+        top: isMobile ? "32px" : "48px",
         left: "50%",
         transform: "translateX(-50%)",
         zIndex: 50,
@@ -73,7 +82,7 @@ export default function InputBar({
             border: "none",
             outline: "none",
             fontFamily: "var(--font-mono)",
-            fontSize: "1rem",
+            fontSize: isMobile ? "16px" : "1rem",
             color: "var(--fg)",
             caretColor: "var(--accent)",
             letterSpacing: "0.02em",

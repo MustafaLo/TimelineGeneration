@@ -172,3 +172,17 @@ h1, h2, h3 {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ─── Mobile (≤ 768px) ──────────────────────────────────────── */
+@media (max-width: 768px) {
+  /* Prevent iOS font scaling on orientation change */
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* Chart wrapper: allow horizontal scroll so bars stay readable */
+  .chart-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}

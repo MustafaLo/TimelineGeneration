@@ -9,14 +9,11 @@ import {
 } from "@/lib/chartUtils";
 
 // ── Layout constants ──────────────────────────────────────────────────────────
-const PAD_BOTTOM   = 60;
-const PAD_LEFT     = 48;
-const PAD_RIGHT    = 160;
-const BAR_H        = 18;
-const BAR_GAP      = 14;
-const RESERVED_TOP = 120;
-const CURRENT_YEAR = 2026;
-const ARROW_EXT    = 48;
+const PAD_BOTTOM     = 60;
+const RESERVED_TOP   = 120;
+const CURRENT_YEAR   = 2026;
+const ARROW_EXT      = 48;
+const MIN_CHART_WIDTH = 900; // minimum SVG width on mobile — enables horizontal scroll
 
 // ── Animation constants ───────────────────────────────────────────────────────
 const BAR_DRAW_DURATION  = 700;  // ms — time for a single bar to draw in
@@ -43,14 +40,16 @@ interface FlatRow {
 
 // ── Pure helpers ──────────────────────────────────────────────────────────────
 
-function computeContentHeight(data: TimelineData): number {
+function computeContentHeight(data: TimelineData, barH: number, barGap: number): number {
   const n = data.length;
-  return n * (BAR_H + BAR_GAP) - BAR_GAP + PAD_BOTTOM;
+  return n * (barH + barGap) - barGap + PAD_BOTTOM;
 }
 
 function buildFlatLayout(
   data: TimelineData,
-  topOffset: number
+  topOffset: number,
+  barH: number,
+  barGap: number,
 ): { rows: FlatRow[] } {
   const catColor = new Map<string, string>();
   let ci = 0;
@@ -64,7 +63,7 @@ function buildFlatLayout(
   const sorted = [...data].sort((a, b) => a.birth_year - b.birth_year);
   const rows: FlatRow[] = sorted.map((person, i) => ({
     person,
-    barY: topOffset + i * (BAR_H + BAR_GAP),
+    barY: topOffset + i * (barH + barGap),
     color: catColor.get(person.category) ?? CAT_COLORS[0],
   }));
 
@@ -105,18 +104,27 @@ export default function TimelineChart({
     return () => ro.disconnect();
   }, []);
 
-  const contentH = useMemo(() => computeContentHeight(data), [data]);
+  // ── Responsive layout values (derived from dims, no extra state needed) ────
+  const isMobile = dims.w > 0 && dims.w < 768;
+  const PAD_LEFT  = isMobile ? 32  : 48;
+  const PAD_RIGHT = isMobile ? 100 : 160;
+  const BAR_H     = isMobile ? 14  : 18;
+  const BAR_GAP   = isMobile ? 10  : 14;
+  // On mobile: SVG is wider than viewport → wrapper scrolls horizontally
+  const svgW      = isMobile ? Math.max(dims.w, MIN_CHART_WIDTH) : dims.w;
+
+  const contentH = useMemo(() => computeContentHeight(data, BAR_H, BAR_GAP), [data, BAR_H, BAR_GAP]);
   const topOffset = dims.h > 0
     ? RESERVED_TOP + Math.max(0, (dims.h - RESERVED_TOP - contentH) * 0.62)
     : RESERVED_TOP;
 
   const { rows } = useMemo(
-    () => buildFlatLayout(data, topOffset),
-    [data, topOffset]
+    () => buildFlatLayout(data, topOffset, BAR_H, BAR_GAP),
+    [data, topOffset, BAR_H, BAR_GAP]
   );
 
   const [minYear, maxYear] = useMemo(() => getYearRange(data, CURRENT_YEAR), [data]);
-  const chartW = Math.max(0, dims.w - PAD_LEFT - PAD_RIGHT);
+  const chartW = Math.max(0, svgW - PAD_LEFT - PAD_RIGHT);
 
   function xs(year: number): number {
     return PAD_LEFT + ((year - minYear) / (maxYear - minYear)) * chartW;
@@ -151,21 +159,23 @@ export default function TimelineChart({
   }
 
   if (dims.w === 0) {
-    return <div ref={wrapRef} style={{ position: "fixed", inset: 0, zIndex: 0 }} />;
+    return <div ref={wrapRef} className="chart-wrapper" style={{ position: "fixed", inset: 0, zIndex: 0 }} />;
   }
 
   return (
     <div
       ref={wrapRef}
+      className="chart-wrapper"
       style={{
         position: "fixed",
         inset: 0,
         zIndex: 0,
-        pointerEvents: "none",
+        // Mobile: needs pointer-events auto so touch scroll works on the wrapper
+        pointerEvents: isMobile ? "auto" : "none",
       }}
     >
       <svg
-        width={dims.w}
+        width={svgW}
         height={dims.h}
         style={{ display: "block", overflow: "visible" }}
         aria-label="Biographical timeline chart"
@@ -208,13 +218,13 @@ export default function TimelineChart({
           const isAlive = person.death_year === null;
 
           const arrowEndX = isAlive
-            ? Math.min(solidEndX + ARROW_EXT, dims.w - 14)
+            ? Math.min(solidEndX + ARROW_EXT, svgW - 14)
             : 0;
 
           const nameW = person.name.length * CHAR_W;
           const rightOfBar = isAlive ? arrowEndX : solidEndX;
           const nameRightX = rightOfBar + 8;
-          const nameOnLeft = nameRightX + nameW > dims.w - 8;
+          const nameOnLeft = nameRightX + nameW > svgW - 8;
           const nameX = nameOnLeft ? bx - 5 : nameRightX;
           const nameAnchor = nameOnLeft ? "end" : "start";
 
@@ -381,7 +391,7 @@ export default function TimelineChart({
         <line
           x1={PAD_LEFT}
           y1={axisY}
-          x2={dims.w - PAD_RIGHT}
+          x2={svgW - PAD_RIGHT}
           y2={axisY}
           stroke="var(--fg-muted)"
           strokeWidth={1}

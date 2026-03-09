@@ -36,6 +36,15 @@ export default function PersonModal({ person, barColor, allData, onClose }: Pers
   const indicatorRef = useRef<HTMLSpanElement>(null);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 768px)");
+    setIsMobile(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
   // ── Events data — fetched once per person on modal open ───────────────────
   const [gridEvents, setGridEvents] = useState<NotableEvent[]>(() =>
     eventCache.get(person.name) ?? []
@@ -156,7 +165,7 @@ export default function PersonModal({ person, barColor, allData, onClose }: Pers
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: "1.5rem",
+        padding: isMobile ? 0 : "1.5rem",
         backgroundColor: "rgba(10, 8, 6, 0.55)",
         backdropFilter: "blur(16px)",
         WebkitBackdropFilter: "blur(16px)",
@@ -168,13 +177,16 @@ export default function PersonModal({ person, barColor, allData, onClose }: Pers
         onClick={(e) => e.stopPropagation()}
         style={{
           position: "relative",
-          width: "min(900px, calc(100vw - 3rem))",
-          aspectRatio: "6 / 4.25",
+          width: isMobile ? "100vw" : "min(900px, calc(100vw - 3rem))",
+          ...(isMobile
+            ? { height: "100dvh" }
+            : { aspectRatio: "6 / 4.25" }),
           backgroundColor: "var(--bg)",
           border: "1px solid var(--border)",
-          borderRadius: "20px",
+          borderRadius: isMobile ? 0 : "20px",
           overflow: "hidden",
           display: "flex",
+          flexDirection: isMobile ? "column" : "row",
           boxShadow:
             "0 40px 100px rgba(0,0,0,0.28), 0 8px 32px rgba(0,0,0,0.14)",
           ...cardAnim,
@@ -223,11 +235,12 @@ export default function PersonModal({ person, barColor, allData, onClose }: Pers
         {/* ── Left panel — biographical info ─────────────────────────────── */}
         <div
           style={{
-            flex: "0 0 50%",
+            flex: isMobile ? "0 0 auto" : "0 0 50%",
             display: "flex",
             flexDirection: "column",
             justifyContent: "center",
-            padding: "3rem 3.5rem",
+            padding: isMobile ? "2rem 1.5rem 1.5rem" : "3rem 3.5rem",
+            overflowY: isMobile ? "auto" : undefined,
           }}
         >
           {/* Name */}
@@ -404,10 +417,11 @@ export default function PersonModal({ person, barColor, allData, onClose }: Pers
         {/* ── Vertical hairline divider ───────────────────────────────────── */}
         <div
           style={{
-            width: "1px",
+            width: isMobile ? "auto" : "1px",
+            height: isMobile ? "1px" : "auto",
             backgroundColor: "var(--border)",
             alignSelf: "stretch",
-            margin: "2rem 0",
+            margin: isMobile ? "0" : "2rem 0",
           }}
         />
 
@@ -417,8 +431,9 @@ export default function PersonModal({ person, barColor, allData, onClose }: Pers
             flex: 1,
             display: "flex",
             flexDirection: "column",
-            padding: "2.25rem 2.75rem",
+            padding: isMobile ? "1.5rem" : "2.25rem 2.75rem",
             minWidth: 0,
+            minHeight: isMobile ? "250px" : undefined,
           }}
         >
           {/* ── Toggle tabs ──────────────────────────────────────────────── */}
