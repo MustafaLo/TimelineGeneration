@@ -348,7 +348,7 @@ export default function Home() {
                 zIndex: 1,
               }}
             >
-              Enter names above — anyone from Cleopatra to Kanye West
+              Enter names above — anyone from Cleopatra to Lebron James
             </div>
           )}
         </div>
